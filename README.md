@@ -13,3 +13,10 @@ Cette base de donnée concerne les commandes de 2016 à 2018 effectué sur plusi
 
 ![image](https://github.com/AnaisGll/OC-P5-Segmenter-des-clients-d-un-site-e-commerce/assets/168277083/bbf8740a-15e1-416c-a485-dfada8958120)
 
+Les librables se composent de :
+- La liste des requêtes SQL demandées pour le dashboard
+- Un script avec l’ensemble des requêtes SQL demandées 
+- Un notebook de l'analyse exploratoire 
+- Un notebook d’essais des différentes approches de modélisation 
+- Un notebook de simulation pour déterminer la fréquence nécessaire de mise à jour du modèle de segmentation
+- Un support de présentation
