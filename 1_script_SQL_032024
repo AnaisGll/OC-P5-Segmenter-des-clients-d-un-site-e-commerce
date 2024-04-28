@@ -1,0 +1,113 @@
+/*
+ Comprendre le contenu de chaque table
+*/
+
+SELECT * FROM customers LIMIT 5;
+SELECT * FROM geoloc LIMIT 5;
+SELECT * FROM order_items LIMIT 5;
+SELECT * FROM order_pymts LIMIT 5;
+SELECT * FROM order_reviews LIMIT 5;
+SELECT * FROM orders LIMIT 5;
+SELECT * FROM products LIMIT 5;
+SELECT * FROM sellers LIMIT 5;
+SELECT * FROM translation LIMIT 5;
+
+/*
+En excluant les commandes annulées, quelles sont les commandes récentes de moins de 3 mois que les clients ont reçues avec au moins 3 jours de retard ?
+*/
+WITH latest_order AS (
+SELECT max(order_purchase_timestamp) FROM orders)
+SELECT *
+FROM 
+    orders
+WHERE 
+    order_status != 'canceled'
+AND 
+    order_purchase_timestamp >= date((SELECT * FROM latest_order), '-3 months')
+AND 
+    order_delivered_customer_date >= date(order_estimated_delivery_date, '+3 day');
+
+/*
+Qui sont les vendeurs ayant généré un chiffre d'affaires de plus de 100 000 Real sur des commandes livrées via Olist ?
+*/
+WITH order_joined AS (
+SELECT DISTINCT i.seller_id, i.order_id, i.price, o.order_purchase_timestamp
+FROM order_items AS i 
+INNER JOIN orders AS o
+ON o.order_id = i.order_id
+WHERE o.order_status = 'delivered'
+)
+SELECT 
+    order_joined.seller_id, 
+    SUM(order_joined.price) AS total_revenue
+FROM 
+    order_joined
+GROUP BY 
+    order_joined.seller_id
+HAVING 
+    total_revenue > 100000;
+
+/*
+Qui sont les nouveaux vendeurs (moins de 3 mois d'ancienneté) qui sont déjà très engagés avec la plateforme (ayant déjà vendu plus de 30
+produits) ?
+*/
+WITH latest_order AS (
+    SELECT max(order_purchase_timestamp) FROM orders),
+order_joined AS (
+    SELECT DISTINCT 
+        i.seller_id, 
+        i.order_id, 
+        i.price, 
+        o.order_purchase_timestamp
+    FROM order_items AS i 
+    INNER JOIN orders AS o 
+    ON o.order_id = i.order_id
+    WHERE o.order_status = 'delivered'
+)
+SELECT 
+    order_joined.seller_id, 
+    COUNT(order_joined.order_id) AS total_produit_vendu
+FROM 
+    order_joined
+GROUP BY order_joined.seller_id 
+HAVING MIN(order_joined.order_purchase_timestamp) > date((SELECT * FROM latest_order), '-3 months')
+AND 
+    total_produit_vendu > 30;
+
+/*
+Quels sont les 5 codes postaux, enregistrant plus de 30 commandes, avec le pire review score moyen sur les 12 derniers mois ?
+*/
+
+WITH latest_order AS (
+    SELECT max(order_purchase_timestamp) FROM orders
+),
+reviews_mean AS (
+    SELECT  
+        c.customer_zip_code_prefix,
+        o.order_id,
+        o.order_purchase_timestamp,
+        AVG(r.review_score) AS average_review_score
+    FROM 
+        customers AS c
+    INNER JOIN  
+        orders AS o ON o.customer_id = c.customer_id
+    INNER JOIN 
+        order_reviews AS r ON o.order_id = r.order_id
+    WHERE 
+        o.order_purchase_timestamp > date((SELECT * FROM latest_order), '-12 months')
+    GROUP BY 
+        c.customer_zip_code_prefix, o.order_id
+)
+SELECT 
+    reviews_mean.customer_zip_code_prefix,
+    COUNT(reviews_mean.order_id) AS total_commandes, 
+    AVG(reviews_mean.average_review_score) AS score_moyen
+FROM 
+    reviews_mean
+GROUP BY 
+    reviews_mean.customer_zip_code_prefix
+HAVING 
+    total_commandes > 30
+ORDER BY     
+    score_moyen ASC
+LIMIT 5;
